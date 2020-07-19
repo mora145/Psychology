@@ -22,7 +22,7 @@ namespace Psychology.Harmony
             foreach(CodeInstruction itr in instr)
             {
                 yield return itr;
-                if (itr.opcode == OpCodes.Call && itr.operand == typeof(CharacterCardUtility).GetMethod("DoNameInputRect"))
+                if (itr.opcode == OpCodes.Call && itr.operand == typeof(CharacterCardUtility).GetMethod(nameof(CharacterCardUtility.DoNameInputRect)))
                 {
                     doNames++;
                     if (doNames == 3)
@@ -35,10 +35,10 @@ namespace Psychology.Harmony
             }
         }
 
+        [LogPerformance]
         public static void PsycheCardButton(Rect panelRect, Pawn pawn)
         {
-            PsychologyPawn realPawn = pawn as PsychologyPawn;
-            if(realPawn != null)
+            if(PsycheHelper.PsychologyEnabled(pawn))
             {
                 Rect rect = new Rect(panelRect.xMax + 5f, 3f, 22f, 22f);
                 Color old = GUI.color;
@@ -53,8 +53,8 @@ namespace Psychology.Harmony
                 GUI.DrawTexture(rect, ContentFinder<Texture2D>.Get("Buttons/ButtonPsyche", true));
                 if (Widgets.ButtonInvisible(rect, false))
                 {
-                    SoundDefOf.TickLow.PlayOneShotOnCamera(null);
-                    Find.WindowStack.Add(new Dialog_ViewPsyche(realPawn));
+                    SoundDefOf.Tick_Low.PlayOneShotOnCamera(null);
+                    Find.WindowStack.Add(new Dialog_ViewPsyche(pawn));
                 }
                 GUI.color = old;
             }

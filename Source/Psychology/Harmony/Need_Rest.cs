@@ -9,9 +9,10 @@ using Harmony;
 
 namespace Psychology.Harmony
 {
-    [HarmonyPatch(typeof(Need_Rest), "NeedInterval")]
+    [HarmonyPatch(typeof(Need_Rest), nameof(Need_Rest.NeedInterval))]
     public static class Need_Rest_IntervalDreamPatch
     {
+        [LogPerformance]
         [HarmonyPostfix]
         public static void CauseDream(Need_Rest __instance)
         {
@@ -40,9 +41,10 @@ namespace Psychology.Harmony
         }
     }
 
-    [HarmonyPatch(typeof(Need_Rest), "NeedInterval")]
+    [HarmonyPatch(typeof(Need_Rest), nameof(Need_Rest.NeedInterval))]
     public static class Need_Rest_IntervalInsomniacPatch
     {
+        [LogPerformance]
         [HarmonyPostfix]
         public static void MakeInsomniacLessRestful(Need_Rest __instance)
         {

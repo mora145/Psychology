@@ -26,7 +26,7 @@ namespace Psychology
         {
             get
             {
-                return this.PawnToShowInfoAbout is PsychologyPawn && ((PsychologyPawn)this.PawnToShowInfoAbout).psyche != null;
+                return PsycheHelper.PsychologyEnabled(this.PawnToShowInfoAbout);
             }
         }
         
@@ -49,7 +49,7 @@ namespace Psychology
                 }
                 if (pawn == null)
                 {
-                    Log.Error("Character tab found no selected pawn to display.");
+                    Log.Error("Psyche tab found no selected pawn to display.");
                     return null;
                 }
                 return pawn;

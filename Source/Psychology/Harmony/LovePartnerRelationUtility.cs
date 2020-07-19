@@ -10,21 +10,20 @@ using Harmony;
 
 namespace Psychology.Harmony
 {
-    [HarmonyPatch(typeof(LovePartnerRelationUtility),"LovePartnerRelationGenerationChance")]
+    [HarmonyPatch(typeof(LovePartnerRelationUtility),nameof(LovePartnerRelationUtility.LovePartnerRelationGenerationChance))]
     public static class LovePartnerRelationUtility_GenerationChancePatch
     {
+        [LogPerformance]
         [HarmonyPriority(Priority.Last)]
         [HarmonyPostfix]
         public static void PsychologyFormula(ref float __result, Pawn generated, Pawn other, PawnGenerationRequest request, bool ex)
         {
             /* Throw away the existing result and substitute our own formula. */
             float sexualityFactor = 1f;
-            PsychologyPawn realGenerated = generated as PsychologyPawn;
-            PsychologyPawn realOther = other as PsychologyPawn;
-            if (PsychologyBase.ActivateKinsey() && realGenerated != null && realOther != null && realGenerated.sexuality != null && realOther.sexuality != null)
+            if (PsycheHelper.PsychologyEnabled(generated) && PsycheHelper.PsychologyEnabled(other) && PsychologyBase.ActivateKinsey())
             {
-                float kinsey = 3 - realGenerated.sexuality.kinseyRating;
-                float kinsey2 = 3 - realOther.sexuality.kinseyRating;
+                float kinsey = 3 - PsycheHelper.Comp(generated).Sexuality.kinseyRating;
+                float kinsey2 = 3 - PsycheHelper.Comp(other).Sexuality.kinseyRating;
                 float homo = (generated.gender == other.gender) ? 1f : -1f;
                 sexualityFactor *= Mathf.InverseLerp(3f, 0f, kinsey * homo);
                 sexualityFactor *= Mathf.InverseLerp(3f, 0f, kinsey2 * homo);
@@ -73,7 +72,7 @@ namespace Psychology.Harmony
         }
     }
 
-    [HarmonyPatch(typeof(LovePartnerRelationUtility), "ChangeSpouseRelationsToExSpouse")]
+    [HarmonyPatch(typeof(LovePartnerRelationUtility), nameof(LovePartnerRelationUtility.ChangeSpouseRelationsToExSpouse))]
     public static class LovePartnerRelationUtility_PolygamousSpousePatch
     {
         [HarmonyPrefix]

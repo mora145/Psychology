@@ -41,7 +41,7 @@ namespace Psychology
             transition.AddTrigger(new Trigger_TickCondition(() => this.ShouldBeCalledOff()));
             transition.AddTrigger(new Trigger_TickCondition(() => this.mayor.health.summaryHealth.SummaryHealthPercent < 1f || this.constituent.health.summaryHealth.SummaryHealthPercent < 1f));
             transition.AddTrigger(new Trigger_TickCondition(() => this.mayor.Drafted || this.constituent.Drafted));
-            transition.AddTrigger(new Trigger_PawnLostViolently());
+            transition.AddTrigger(new Trigger_PawnLost());
             stateGraph.AddTransition(transition);
             //Time of meeting is affected by the constituents' mood; meetings to complain can take longer than meetings to commend.
             this.timeoutTrigger = new Trigger_TicksPassed(Rand.RangeInclusive(GenDate.TicksPerHour, Mathf.RoundToInt(GenDate.TicksPerHour / Mathf.Lerp(0.2f, 1f, constituent.needs.mood.CurLevel))));
@@ -62,12 +62,11 @@ namespace Psychology
             Scribe_References.Look(ref this.mayor, "mayor");
             Scribe_Values.Look(ref this.complaint, "complaining");
         }
-        
+
+        [LogPerformance]
         private void Finished()
         {
-            PsychologyPawn realMayor = mayor as PsychologyPawn;
-            PsychologyPawn realConstituent = constituent as PsychologyPawn;
-            if(realMayor != null & realConstituent != null)
+            if(PsycheHelper.PsychologyEnabled(mayor) && PsycheHelper.PsychologyEnabled(constituent))
             {
                 if (this.ticksInSameRoom > 0)
                 {
@@ -79,45 +78,53 @@ namespace Psychology
                         //Constituent thought duration affected by mayor's Social stat
                         complaintDef.thoughtClass = typeof(Thought_MemoryDynamic);
                         complaintDef.stackedEffectMultiplier = 1f;
+                        complaintDef.stackLimit = 999;
                         ThoughtStage complaintStage = new ThoughtStage();
-                        float complaintMood = 12f * (realMayor.psyche.GetPersonalityRating(PersonalityNodeDefOf.Empathetic) - 0.33f);
+                        float complaintMood = 18f * (PsycheHelper.Comp(mayor).Psyche.GetPersonalityRating(PersonalityNodeDefOf.Empathetic) - 0.33f);
                         //Base complaint mood determined by mayor's Empathetic trait
-                        complaintMood *= this.ticksInSameRoom / GenDate.TicksPerHour;
+                        complaintMood *= (float)this.ticksInSameRoom / (float)GenDate.TicksPerHour;
                         //Length of meeting also affects mood
-                        complaintMood *= (complaintMood < 0f ? Mathf.Lerp(1.25f, 0.75f, realConstituent.psyche.GetPersonalityRating(PersonalityNodeDefOf.Polite)) : 1f);
+                        complaintMood *= (complaintMood < 0f ? Mathf.Lerp(1.25f, 0.75f, PsycheHelper.Comp(constituent).Psyche.GetPersonalityRating(PersonalityNodeDefOf.Polite)) : 1f);
                         //Negative meeting thoughts (unempathetic mayors) mitigated by mayor's politeness
                         complaintMood += (BeautyUtility.AverageBeautyPerceptible(this.constituent.Position, this.constituent.Map) / 10f);
                         //Beauty of the room has a net positive effect on the thought
-                        complaintMood *= 0.75f + (realConstituent.psyche.GetPersonalityRating(PersonalityNodeDefOf.Judgmental)/2f);
+                        complaintMood *= 0.75f + (PsycheHelper.Comp(constituent).Psyche.GetPersonalityRating(PersonalityNodeDefOf.Judgmental)/2f);
                         //Constituent's Judgmental trait changes how much the thought affects them
                         complaintStage.label = "ComplaintLabel".Translate();
                         complaintStage.description = "ComplaintDesc".Translate();
                         complaintStage.baseMoodEffect = Mathf.RoundToInt(complaintMood);
                         complaintDef.defName = this.constituent.GetHashCode() + "MayorComplaint" + complaintStage.baseMoodEffect;
                         complaintDef.stages.Add(complaintStage);
-                        this.constituent.needs.mood.thoughts.memories.TryGainMemory(complaintDef, this.mayor);
+                        if(complaintStage.baseMoodEffect != 0)
+                        {
+                            this.constituent.needs.mood.thoughts.memories.TryGainMemory(complaintDef, this.mayor);
+                        }
                     }
                     ThoughtDef visitDef = new ThoughtDef();
                     visitDef.label = "MayorVisited";
-                    visitDef.durationDays = 0.75f + 2f * (1f - realMayor.psyche.GetPersonalityRating(PersonalityNodeDefOf.Independent));
+                    visitDef.durationDays = 0.75f + 2f * (1f - PsycheHelper.Comp(mayor).Psyche.GetPersonalityRating(PersonalityNodeDefOf.Independent));
                     //Mayor thought duration affected by mayor's Independent trait
                     visitDef.thoughtClass = typeof(Thought_MemoryDynamic);
                     visitDef.stackedEffectMultiplier = 1f;
+                    visitDef.stackLimit = 999;
                     ThoughtStage stage = new ThoughtStage();
-                    float mood = 5f * (complaint ? -1f - (1f - this.constituent.needs.mood.CurLevel) : 0.25f + Mathf.Max(0f, 0.25f - this.constituent.needs.mood.CurLevel));
+                    float mood = 7f * (complaint ? -0.5f - (1f - this.constituent.needs.mood.CurLevel) : 0.1f + (this.constituent.needs.mood.CurLevel * 0.65f));
                     //Base visit mood determined by the mood level of the constituent
-                    mood *= this.ticksInSameRoom / GenDate.TicksPerHour;
+                    mood *= (float)this.ticksInSameRoom / (float)GenDate.TicksPerHour;
                     //Length of meeting also affects mood
-                    mood *= (mood < 0f ? Mathf.Lerp(1.25f, 0.75f, realConstituent.psyche.GetPersonalityRating(PersonalityNodeDefOf.Polite)) : 1f);
+                    mood *= (mood < 0f ? Mathf.Lerp(1.25f, 0.75f, PsycheHelper.Comp(constituent).Psyche.GetPersonalityRating(PersonalityNodeDefOf.Polite)) : 1f);
                     //Negative meeting thoughts (unhappy constituents) mitigated by constituent's politeness
-                    mood *= 0.5f + (1f - realConstituent.psyche.GetPersonalityRating(PersonalityNodeDefOf.LaidBack));
+                    mood *= 0.5f + (1f - PsycheHelper.Comp(this.mayor).Psyche.GetPersonalityRating(PersonalityNodeDefOf.LaidBack));
                     //Mayor's Laid-Back trait strongly impacts how much the thought affects them
                     stage.label = "VisitLabel".Translate();
                     stage.description = "VisitDesc".Translate();
                     stage.baseMoodEffect = Mathf.RoundToInt(mood);
                     visitDef.defName = this.mayor.GetHashCode() + "MayorVisited" + stage.baseMoodEffect;
                     visitDef.stages.Add(stage);
-                    this.mayor.needs.mood.thoughts.memories.TryGainMemory(visitDef, this.constituent);
+                    if(stage.baseMoodEffect != 0)
+                    {
+                        this.mayor.needs.mood.thoughts.memories.TryGainMemory(visitDef, this.constituent);
+                    }
                     InteractionDef endConversation = new InteractionDef();
                     endConversation.defName = "EndConversation";
                     FieldInfo RuleStrings = typeof(RulePack).GetField("rulesStrings", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -125,21 +132,16 @@ namespace Psychology
                     List<string> text = new List<string>(1);
                     if (complaint)
                     {
-                        text.Add("logentry->"+"Complained".Translate());
+                        text.Add("r_logentry->"+"Complained".Translate(constituent, mayor));
                     }
                     else
                     {
-                        text.Add("logentry->"+"Supported".Translate());
+                        text.Add("r_logentry->"+"Supported".Translate(constituent, mayor));
                     }
                     RuleStrings.SetValue(goodbyeTextInit, text);
-                    RulePack goodbyeTextRecip = new RulePack();
-                    List<String> text2 = new List<string>(1);
-                    text2.Add("logentry->"+"HadMeeting".Translate()+", [other_nameShortIndef].");
-                    RuleStrings.SetValue(goodbyeTextRecip, text2);
                     endConversation.logRulesInitiator = goodbyeTextInit;
-                    endConversation.logRulesRecipient = goodbyeTextRecip;
                     FieldInfo Symbol = typeof(InteractionDef).GetField("symbol", BindingFlags.Instance | BindingFlags.NonPublic);
-                    Symbol.SetValue(endConversation, Symbol.GetValue(InteractionDefOf.DeepTalk));
+                    Symbol.SetValue(endConversation, Symbol.GetValue(InteractionDefOfPsychology.HangOut));
                     PlayLogEntry_InteractionConversation log = new PlayLogEntry_InteractionConversation(endConversation, this.constituent, this.mayor, new List<RulePackDef>());
                     Find.PlayLog.Add(log);
                     MoteMaker.MakeInteractionBubble(this.mayor, this.constituent, InteractionDefOf.Chitchat.interactionMote, InteractionDefOf.Chitchat.Symbol);

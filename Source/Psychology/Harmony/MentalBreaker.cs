@@ -9,9 +9,10 @@ using Harmony;
 
 namespace Psychology.Harmony
 {
-    [HarmonyPatch(typeof(MentalBreaker), "TryDoRandomMoodCausedMentalBreak")]
+    [HarmonyPatch(typeof(MentalBreaker), nameof(MentalBreaker.TryDoRandomMoodCausedMentalBreak))]
     public static class MentalBreaker_AnxietyPatch
     {
+        [LogPerformance]
         [HarmonyPostfix]
         public static void AddAnxiety(MentalBreaker __instance, ref bool __result)
         {
@@ -22,19 +23,25 @@ namespace Psychology.Harmony
                 int.TryParse("" + (byte)Traverse.Create(__instance).Property("CurrentDesiredMoodBreakIntensity").GetValue<MentalBreakIntensity>(), out intensity);
                 Hediff hediff = pawn.health.hediffSet.GetFirstHediffOfDef(HediffDefOfPsychology.Anxiety);
                 float PTSDChance = (0.25f - (0.075f * intensity));
-                if (pawn is PsychologyPawn)
+                if (pawn.story.traits.HasTrait(TraitDefOfPsychology.Desensitized))
+                {
+                    PTSDChance *= 0.75f;
+                }
+                if (PsycheHelper.PsychologyEnabled(pawn))
                 {
                     //Laid-back pawns are less likely to get anxiety from mental breaks.
-                    PTSDChance -= (pawn as PsychologyPawn).psyche.GetPersonalityRating(PersonalityNodeDefOf.LaidBack) / 10f;
+                    PTSDChance -= pawn.GetComp<CompPsychology>().Psyche.GetPersonalityRating(PersonalityNodeDefOf.LaidBack) / 10f;
                 }
                 if (hediff != null)
                 {
                     hediff.Severity += 0.15f - (intensity * 0.5f);
                 }
-                else if (Rand.Value <= PTSDChance)
+                else if (Rand.Chance(PTSDChance))
                 {
                     Hediff newHediff = HediffMaker.MakeHediff(HediffDefOfPsychology.Anxiety, pawn, pawn.health.hediffSet.GetBrain());
                     newHediff.Severity = 0.75f - (intensity * 0.25f);
+                    Letter newAnxiety = LetterMaker.MakeLetter("LetterLabelPTSD".Translate(), "LetterPTSD".Translate(pawn), LetterDefOf.NegativeEvent, pawn);
+                    Find.LetterStack.ReceiveLetter(newAnxiety);
                     pawn.health.AddHediff(newHediff, null, null);
                 }
             }

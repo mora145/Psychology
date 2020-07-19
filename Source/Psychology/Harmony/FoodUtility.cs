@@ -8,9 +8,10 @@ using Harmony;
 
 namespace Psychology.Harmony
 {
-    [HarmonyPatch(typeof(FoodUtility), "ThoughtsFromIngesting")]
+    [HarmonyPatch(typeof(FoodUtility), nameof(FoodUtility.ThoughtsFromIngesting))]
     public static class FoodUtility_AddPickyThoughts_Patch
     {
+        [LogPerformance]
         [HarmonyPostfix]
         public static void AddPickyThoughtsPatch(ref List<ThoughtDef> __result)
         {

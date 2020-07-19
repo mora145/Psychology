@@ -11,12 +11,16 @@ namespace Psychology.Harmony
     [HarmonyPatch(typeof(ThoughtWorker_TeetotalerVsChemicalInterest), "CurrentSocialStateInternal")]
     public static class ThoughtWorker_TeetotalerVsChemicalInterestPatch
     {
+        [LogPerformance]
         [HarmonyPostfix]
         public static void Disable(ref ThoughtState __result, Pawn p, Pawn other)
         {
-            if (p is PsychologyPawn && other is PsychologyPawn)
+            if (__result.StageIndex != ThoughtState.Inactive.StageIndex)
             {
-                __result = false;
+                if (PsycheHelper.PsychologyEnabled(p) && PsycheHelper.PsychologyEnabled(other))
+                {
+                    __result = false;
+                }
             }
         }
     }

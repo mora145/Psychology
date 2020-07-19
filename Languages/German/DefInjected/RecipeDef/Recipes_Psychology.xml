@@ -16,6 +16,15 @@
   <TreatDepression.label>Depression behandeln</TreatDepression.label>
   <TreatDepression.description>Hilft jemanden, der depressiv ist, ihn bei Laune zu halten.</TreatDepression.description>
   <TreatDepression.jobString>Depression wird behandelt.</TreatDepression.jobString>
+  
+  <TreatInsomnia.label>Schlaflosigkeit behandeln</TreatInsomnia.label>
+  <TreatInsomnia.description>Hilft jemandem mit Schlaflosigkeit wieder Schlaf zu finden.</TreatInsomnia.description>
+  <TreatInsomnia.jobString>Schlaflosigkeit wird behandelt.</TreatInsomnia.jobString>
+
+  <CureAnxiety.label>Angst heilen</CureAnxiety.label>
+  <CureAnxiety.description>Beseitigt dauerhaft die Angst durch die Kraft der Glitterworld-Therapie.</CureAnxiety.description>
+  <CureAnxiety.jobString>Angstzustände werden behandelt.</CureAnxiety.jobString>
+
 
 
 </LanguageData>

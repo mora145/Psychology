@@ -11,13 +11,14 @@ namespace Psychology
     public class Dialog_ViewPsyche : Window
     {
 
-        private PsychologyPawn pawn;
+        private Pawn pawn;
 
-        public Dialog_ViewPsyche(PsychologyPawn editFor)
+        public Dialog_ViewPsyche(Pawn editFor)
         {
             pawn = editFor;
         }
 
+        [LogPerformance]
         public override void DoWindowContents(Rect inRect)
         {
             bool flag = false;

@@ -12,6 +12,7 @@ namespace Psychology
     public class MentalState_SelfHarm : MentalState
     {
 
+        [LogPerformance]
         public override void MentalStateTick()
         {
             base.MentalStateTick();
@@ -19,7 +20,7 @@ namespace Psychology
             {
 
                 IEnumerable<BodyPartRecord> parts = (from b in pawn.health.hediffSet.GetNotMissingParts()
-                                              where b.def == BodyPartDefOf.LeftHand || b.def == BodyPartDefOf.RightHand || b.def == BodyPartDefOf.LeftArm || b.def == BodyPartDefOf.RightArm
+                                              where (b.def == BodyPartDefOf.Hand || b.def == BodyPartDefOf.Arm) && b.coverage > 0
                                               select b);
                 if (parts.Count() > 0 && pawn.IsHashIntervalTick(2000))
                 {
@@ -28,7 +29,7 @@ namespace Psychology
                         if (pawn.health.hediffSet.GetPartHealth(part) > 3 && Rand.Chance(0.08f))
                         {
                             int num = Mathf.Max(3, GenMath.RoundRandom(pawn.health.hediffSet.GetPartHealth(part) * Rand.Range(0.1f, 0.35f)));
-                            DamageInfo info = new DamageInfo(DamageDefOf.Cut, num, -1, null, part, null);
+                            DamageInfo info = new DamageInfo(DamageDefOf.Cut, num, 0f, -1f, null, part, null);
                             pawn.TakeDamage(info);
                         }
                     }

@@ -4,13 +4,11 @@
   <ThoughtDef>
     <defName>Dynamic</defName>
 	<thoughtClass>Psychology.Thought_MemoryDynamic</thoughtClass>
-    <durationDays>1</durationDays>
-    <stages>
-      <li>
-        <label>dynamic thought</label>
-        <baseMoodEffect>1</baseMoodEffect>
-      </li>
-    </stages>
+	<stages>
+		<li>
+			<label>dynamic</label>
+		</li>
+	</stages>
   </ThoughtDef>
   
   <ThoughtDef>
@@ -385,6 +383,21 @@
         <label>had to cancel a date</label>
 		<description>I was supposed to go on a date with my partner, but something came up in the colony and we had to cancel. I was looking forward to it...</description>
         <baseMoodEffect>-4</baseMoodEffect>
+      </li>
+    </stages>
+  </ThoughtDef>
+
+  <ThoughtDef>
+    <defName>WonFight</defName>
+    <durationDays>1</durationDays>
+    <stackLimit>4</stackLimit>
+    <stackLimitForSameOtherPawn>1</stackLimitForSameOtherPawn>
+    <stackedEffectMultiplier>0.75</stackedEffectMultiplier>
+    <stages>
+      <li>
+        <label>won a social fight</label>
+		<description>That'll teach them not to mess with me.</description>
+        <baseMoodEffect>4</baseMoodEffect>
       </li>
     </stages>
   </ThoughtDef>

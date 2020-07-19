@@ -12,6 +12,8 @@ namespace Psychology
     {
         public override bool StateCanOccur(Pawn pawn)
         {
+            if (pawn.Map == null)
+                return false;
             return base.StateCanOccur(pawn) && (pawn.Map.mapPawns.FreeColonistsSpawnedCount) > 1;
         }
     }

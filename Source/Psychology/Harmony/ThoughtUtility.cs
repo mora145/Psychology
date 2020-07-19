@@ -7,7 +7,7 @@ using Harmony;
 
 namespace Psychology.Harmony
 {
-    [HarmonyPatch(typeof(ThoughtUtility), "GiveThoughtsForPawnExecuted")]
+    [HarmonyPatch(typeof(ThoughtUtility), nameof(ThoughtUtility.GiveThoughtsForPawnExecuted))]
     public static class ThoughtUtility_ExecutedPatch
     {
         /** This function searches for a thought in a pawn's memories, caused by another pawn, if applicable.
@@ -25,6 +25,7 @@ namespace Psychology.Harmony
             }
             return false;
         } **/
+        [LogPerformance]
         [HarmonyPostfix]
         public static void BleedingHeartThoughts(Pawn victim, PawnExecutionKind kind)
         {
@@ -61,18 +62,17 @@ namespace Psychology.Harmony
             {
                 def = ThoughtDefOfPsychology.KnowGuestExecutedBleedingHeart;
             }
-            foreach (Pawn current in from x in PawnsFinder.AllMapsCaravansAndTravelingTransportPods
-                                     where x.IsColonist || x.IsPrisonerOfColony
-                                     select x)
+            foreach (Pawn current in PawnsFinder.AllMapsCaravansAndTravelingTransportPods_Alive_FreeColonistsAndPrisoners)
             {
                 current.needs.mood.thoughts.memories.TryGainMemory(ThoughtMaker.MakeThought(def, forcedStage), null);
             }
         }
     }
 
-    [HarmonyPatch(typeof(ThoughtUtility), "GiveThoughtsForPawnOrganHarvested")]
+    [HarmonyPatch(typeof(ThoughtUtility), nameof(ThoughtUtility.GiveThoughtsForPawnOrganHarvested))]
     public static class ThoughtUtility_OrganHarvestedPatch
     {
+        [LogPerformance]
         [HarmonyPostfix]
         public static void BleedingHeartThoughts(Pawn victim)
         {
@@ -89,9 +89,7 @@ namespace Psychology.Harmony
             {
                 thoughtDef = ThoughtDefOfPsychology.KnowGuestOrganHarvestedBleedingHeart;
             }
-            foreach (Pawn current in from x in PawnsFinder.AllMapsCaravansAndTravelingTransportPods
-                                     where x.IsColonist || x.IsPrisonerOfColony
-                                     select x)
+            foreach (Pawn current in PawnsFinder.AllMapsCaravansAndTravelingTransportPods_Alive_FreeColonistsAndPrisoners)
             {
                 if (current == victim)
                 {

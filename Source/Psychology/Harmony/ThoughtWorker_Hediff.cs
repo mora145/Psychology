@@ -12,14 +12,18 @@ namespace Psychology.Harmony
     [HarmonyPatch(typeof(ThoughtWorker_Hediff), "CurrentStateInternal")]
     public static class ThoughtWorker_HediffPsychology
     {
+        [LogPerformance]
         [HarmonyPostfix]
         public static void MethadoneHigh(ThoughtWorker_Hediff __instance, ref ThoughtState __result, Pawn p)
         {
-            Hediff firstHediffOfDef = p.health.hediffSet.GetFirstHediffOfDef(__instance.def.hediff);
-            if (__instance.def.defName.Contains("Withdrawal") && p.health.hediffSet.HasHediff(HediffDefOfPsychology.MethadoneHigh))
+            if(__result.StageIndex != ThoughtState.Inactive.StageIndex)
             {
-                __result = ThoughtState.Inactive;
-                return;
+                Hediff firstHediffOfDef = p.health.hediffSet.GetFirstHediffOfDef(__instance.def.hediff);
+                if (__instance.def.defName.Contains("Withdrawal") && p.health.hediffSet.HasHediff(HediffDefOfPsychology.MethadoneHigh))
+                {
+                    __result = ThoughtState.Inactive;
+                    return;
+                }
             }
         }
     }

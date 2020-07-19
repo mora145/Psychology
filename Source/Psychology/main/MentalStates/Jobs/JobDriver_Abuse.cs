@@ -11,11 +11,12 @@ namespace Psychology
 {
     public class JobDriver_Abuse : JobDriver
     {
-        public override bool TryMakePreToilReservations()
+        public override bool TryMakePreToilReservations(bool errorOnFailed)
         {
             return true;
         }
 
+        [LogPerformance]
         private static Toil AbuseTarget(Pawn target)
         {
             Toil toil = new Toil();
@@ -36,6 +37,7 @@ namespace Psychology
             return toil;
         }
 
+        [LogPerformance]
         private static Toil ReachTarget(Pawn target)
         {
             Toil toil = new Toil();

@@ -12,7 +12,7 @@ using System.Reflection.Emit;
 
 namespace Psychology.Harmony
 {
-    [HarmonyPatch(typeof(Pawn), "CheckAcceptArrest")]
+    [HarmonyPatch(typeof(Pawn), nameof(Pawn.CheckAcceptArrest))]
     public static class Pawn_ArrestPatch
     {
         [HarmonyTranspiler]
@@ -23,7 +23,7 @@ namespace Psychology.Harmony
             bool removeIfStatement = false;
             foreach(CodeInstruction itr in instr)
             {
-                if((itr.opcode == OpCodes.Call && itr.operand == AccessTools.Property(typeof(Rand), "Value").GetGetMethod()) || removeIfStatement)
+                if((itr.opcode == OpCodes.Call && itr.operand == AccessTools.Property(typeof(Rand), nameof(Rand.Value)).GetGetMethod()) || removeIfStatement)
                 {
                     if(!removeIfStatement)
                     {
@@ -35,7 +35,7 @@ namespace Psychology.Harmony
                         skipLabel = (Label)itr.operand;
                         yield return new CodeInstruction(OpCodes.Ldarg_0) { labels = labels };
                         yield return new CodeInstruction(OpCodes.Ldarg_1);
-                        yield return new CodeInstruction(OpCodes.Callvirt, AccessTools.Method(typeof(Pawn_ArrestPatch), "NewArrestCheck", new Type[] { typeof(Pawn), typeof(Pawn) }));
+                        yield return new CodeInstruction(OpCodes.Callvirt, AccessTools.Method(typeof(Pawn_ArrestPatch), nameof(Pawn_ArrestPatch.NewArrestCheck), new Type[] { typeof(Pawn), typeof(Pawn) }));
                         yield return new CodeInstruction(OpCodes.Brfalse_S, skipLabel);
                         removeIfStatement = false;
                     }
@@ -53,7 +53,7 @@ namespace Psychology.Harmony
         }
     }
 
-    [HarmonyPatch(typeof(Pawn), "PreTraded")]
+    [HarmonyPatch(typeof(Pawn), nameof(Pawn.PreTraded))]
     public static class Pawn_PreTradedPatch
     {
         [HarmonyPostfix]
@@ -63,9 +63,7 @@ namespace Psychology.Harmony
             {
                 if (__instance.RaceProps.Humanlike)
                 {
-                    foreach (Pawn current in from x in PawnsFinder.AllMapsCaravansAndTravelingTransportPods
-                                             where x.IsColonist || x.IsPrisonerOfColony
-                                             select x)
+                    foreach (Pawn current in PawnsFinder.AllMapsCaravansAndTravelingTransportPods_Alive_FreeColonistsAndPrisoners)
                     {
                         current.needs.mood.thoughts.memories.TryGainMemory(ThoughtDefOfPsychology.KnowPrisonerSoldBleedingHeart, null);
                     }

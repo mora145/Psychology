@@ -11,6 +11,7 @@ using Verse.Grammar;
 using HugsLib.Settings;
 using HugsLib;
 using UnityEngine;
+using Harmony;
 
 namespace Psychology
 {
@@ -21,12 +22,17 @@ namespace Psychology
         public static bool notBabyMode = true;
         public static bool elections = true;
         public static float convoDuration = 60f;
+        public static bool dateLetters = true;
+        public static bool benchmark = false;
         private SettingHandle<bool> toggleKinsey;
         private SettingHandle<bool> toggleEmpathy;
         private SettingHandle<KinseyMode> kinseyMode;
         private SettingHandle<bool> toggleIndividuality;
         private SettingHandle<bool> toggleElections;
         private SettingHandle<float> conversationDuration;
+        private SettingHandle<bool> toggleDateLetters;
+        private SettingHandle<bool> toggleBenchmarking;
+        public static Backstory child = new Backstory();
 
         public enum KinseyMode
         {
@@ -61,6 +67,16 @@ namespace Psychology
             return convoDuration;
         }
 
+        static public bool SendDateLetters()
+        {
+            return dateLetters;
+        }
+
+        static public bool EnablePerformanceTesting()
+        {
+            return new PsychologyBase().Settings.GetHandle<bool>("Benchmarking", "BenchmarkingTitle".Translate(), "BenchmarkingTooltip".Translate(), false).Value;
+        }
+
         public override string ModIdentifier
         {
             get
@@ -68,7 +84,7 @@ namespace Psychology
                 return "Psychology";
             }
         }
-
+        
         private static void RemoveTrait(Pawn pawn, TraitDef trait)
         {
             pawn.story.traits.allTraits.RemoveAll(t => t.def == trait);
@@ -106,6 +122,15 @@ namespace Psychology
             mode = kinseyMode.Value;
             notBabyMode = toggleIndividuality.Value;
             elections = toggleElections.Value;
+            convoDuration = conversationDuration.Value;
+            dateLetters = toggleDateLetters.Value;
+            bool oldBenchmarkVal = benchmark;
+            benchmark = toggleBenchmarking.Value;
+            // The game has to be restarted for benchmarking to be applied/removed.
+            if (oldBenchmarkVal != benchmark)
+            {
+                GenCommandLine.Restart();
+            }
         }
 
         public override void DefsLoaded()
@@ -120,9 +145,14 @@ namespace Psychology
                 toggleIndividuality = Settings.GetHandle<bool>("EnableIndividuality", "IndividualityTitle".Translate(), "IndividualityTooltip".Translate(), true);
                 toggleElections = Settings.GetHandle<bool>("EnableElections", "ElectionsTitle".Translate(), "ElectionsTooltip".Translate(), true);
                 conversationDuration = Settings.GetHandle<float>("ConversationDuration", "DurationTitle".Translate(), "DurationTooltip".Translate(), 60f, (String s) => float.Parse(s) >= 15f && float.Parse(s) <= 180f);
+                toggleDateLetters = Settings.GetHandle<bool>("SendDateLetters", "SendDateLettersTitle".Translate(), "SendDateLettersTooltip".Translate(), true);
+                toggleBenchmarking = Settings.GetHandle<bool>("Benchmarking", "BenchmarkingTitle".Translate(), "BenchmarkingTooltip".Translate(), false);
 
+                kinsey = toggleKinsey.Value;
                 notBabyMode = toggleIndividuality.Value;
                 elections = toggleElections.Value;
+                dateLetters = toggleDateLetters.Value;
+                benchmark = toggleBenchmarking.Value;
                 convoDuration = conversationDuration.Value;
 
                 if (PsychologyBase.ActivateKinsey())
@@ -206,17 +236,15 @@ namespace Psychology
 
                 IEnumerable<ThingDef> things = (
                     from def in DefDatabase<ThingDef>.AllDefs
-                    where typeof(Pawn).IsAssignableFrom(def.thingClass)
-                    && def.race?.intelligence == Intelligence.Humanlike
-                    && !def.defName.Contains("AIPawn")
+                    where def.race?.intelligence == Intelligence.Humanlike
+                    && !def.defName.Contains("AIPawn") && !def.defName.Contains("Android") && !def.defName.Contains("Robot")
                     && (zombieThinkTree == null || def.race.thinkTreeMain != zombieThinkTree)
                     select def
                 );
 
+                List<string> registered = new List<string>();
                 foreach (ThingDef t in things)
                 {
-                    t.thingClass = typeof(PsychologyPawn);
-
                     if (t.inspectorTabsResolved == null)
                     {
                         t.inspectorTabsResolved = new List<InspectTabBase>(1);
@@ -234,6 +262,12 @@ namespace Psychology
                     t.recipes.Add(RecipeDefOfPsychology.TreatInsomnia);
                     t.recipes.Add(RecipeDefOfPsychology.CureAnxiety);
 
+                    if (t.comps == null)
+                    {
+                        t.comps = new List<CompProperties>(1);
+                    }
+                    t.comps.Add(new CompProperties_Psychology());
+
                     if (!t.race.hediffGiverSets.NullOrEmpty())
                     {
                         if (t.race.hediffGiverSets.Contains(DefDatabase<HediffGiverSetDef>.GetNamed("OrganicStandard")))
@@ -241,80 +275,78 @@ namespace Psychology
                             t.race.hediffGiverSets.Add(DefDatabase<HediffGiverSetDef>.GetNamed("OrganicPsychology"));
                         }
                     }
-
-                    if(Prefs.DevMode && Prefs.LogVerbose)
-                    {
-                        Log.Message("Psychology :: Registered " + t.defName);
-                    }
+                    registered.Add(t.defName);
+                }
+                if (Prefs.DevMode && Prefs.LogVerbose)
+                {
+                    Log.Message("Psychology :: Registered " + string.Join(", ", registered.ToArray()));
                 }
 
                 /*
                  * Now to enjoy the benefits of having made a popular mod!
                  * This will be our little secret.
                  */
-                Backstory childMe = new Backstory();
-                childMe.bodyTypeMale = BodyType.Male;
-                childMe.bodyTypeFemale = BodyType.Female;
-                childMe.slot = BackstorySlot.Childhood;
-                childMe.SetTitle("Child soldier");
-                childMe.SetTitleShort("Scout");
-                childMe.baseDesc = "NAME was born into a dictatorial outlander society on a nearby rimworld. Their chief export was war, and HE was conscripted at a young age into the military to serve as a scout due to HIS runner's build. HECAP learned how to use a gun, patch wounds on the battlefield, and communicate with HIS squad. It was there HE earned HIS nickname.";
-                childMe.skillGains.Add("Shooting", 4);
-                childMe.skillGains.Add("Medicine", 2);
-                childMe.skillGains.Add("Social", 1);
-                childMe.requiredWorkTags = WorkTags.Violent;
-                childMe.shuffleable = false;
-                childMe.PostLoad();
-                childMe.ResolveReferences();
-                //Disabled until I can be bothered to code it so they're actually siblings.
-                /*Backstory adultMale = new Backstory();
-                adultMale.bodyTypeMale = BodyType.Male;
-                adultMale.bodyTypeFemale = BodyType.Female;
+                Traverse.Create(child).Field("bodyTypeMale").SetValue("Male");
+                Traverse.Create(child).Field("bodyTypeFemale").SetValue("Female");
+                child.slot = BackstorySlot.Childhood;
+                child.SetTitle("Child soldier", "Child soldier");
+                child.SetTitleShort("Scout", "Scout");
+                child.baseDesc = "[PAWN_nameDef] was born into a dictatorial outlander society on a nearby rimworld. Their chief export was war, and [PAWN_pronoun] was conscripted at a young age into the military to serve as a scout due to [PAWN_possessive] runner's build. [PAWN_pronoun] learned how to use a gun, patch wounds on the battlefield, and communicate with [PAWN_possessive] squad. It was there [PAWN_pronoun] earned [PAWN_possessive] nickname.";
+                Traverse.Create(child).Field("skillGains").GetValue<Dictionary<string,int>>().Add("Shooting", 4);
+                Traverse.Create(child).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Medicine", 2);
+                Traverse.Create(child).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Social", 1);
+                child.requiredWorkTags = WorkTags.Violent;
+                child.shuffleable = false;
+                child.PostLoad();
+                child.ResolveReferences();
+                Backstory adultMale = new Backstory();
+                Traverse.Create(adultMale).Field("bodyTypeMale").SetValue("Male");
+                Traverse.Create(adultMale).Field("bodyTypeFemale").SetValue("Female");
                 adultMale.slot = BackstorySlot.Adulthood;
-                adultMale.SetTitle("Missing in action");
-                adultMale.SetTitleShort("P.O.W.");
-                adultMale.baseDesc = "Eventually, HE was captured on a mission by one of HIS faction's many enemies. HECAP was tortured for information, the techniques of which HE never forgot. When they could get no more out of HIM, HE was sent to a prison camp, where HE worked for years before staging an escape and fleeing into civilization.";
-                adultMale.skillGains.Add("Crafting", 4);
-                adultMale.skillGains.Add("Construction", 3);
-                adultMale.skillGains.Add("Mining", 2);
-                adultMale.skillGains.Add("Social", 1);
+                adultMale.SetTitle("Missing in action", "Missing in action");
+                adultMale.SetTitleShort("Ex-P.O.W.", "Ex-P.O.W.");
+                adultMale.baseDesc = "Eventually, [PAWN_pronoun] was captured on a mission by one of [PAWN_possessive] faction's many enemies. [PAWN_pronoun] was tortured for information, the techniques of which [PAWN_pronoun] never forgot. When they could get no more out of [PAWN_objective], [PAWN_pronoun] was sent to a prison camp, where [PAWN_pronoun] worked for years before staging an escape and fleeing into civilization.";
+                Traverse.Create(adultMale).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Crafting", 4);
+                Traverse.Create(adultMale).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Construction", 3);
+                Traverse.Create(adultMale).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Mining", 2);
+                Traverse.Create(adultMale).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Social", 1);
                 adultMale.spawnCategories = new List<string>();
                 adultMale.spawnCategories.AddRange(new string[] { "Civil", "Raider", "Slave", "Trader", "Traveler" });
                 adultMale.shuffleable = false;
                 adultMale.PostLoad();
-                adultMale.ResolveReferences();*/
+                adultMale.ResolveReferences();
                 Backstory adultFemale = new Backstory();
-                adultFemale.bodyTypeMale = BodyType.Male;
-                adultFemale.bodyTypeFemale = BodyType.Female;
+                Traverse.Create(adultFemale).Field("bodyTypeMale").SetValue("Male");
+                Traverse.Create(adultFemale).Field("bodyTypeFemale").SetValue("Female");
                 adultFemale.slot = BackstorySlot.Adulthood;
-                adultFemale.SetTitle("Battlefield medic");
-                adultFemale.SetTitleShort("Medic");
-                adultFemale.baseDesc = "HECAP continued to serve in the military, being promoted through the ranks as HIS skill increased. HECAP learned how to treat more serious wounds as HIS role slowly transitioned from scout to medic, as well as how to make good use of army rations. HECAP built good rapport with HIS squad as a result.";
-                adultFemale.skillGains.Add("Shooting", 4);
-                adultFemale.skillGains.Add("Medicine", 3);
-                adultFemale.skillGains.Add("Cooking", 2);
-                adultFemale.skillGains.Add("Social", 1);
+                adultFemale.SetTitle("Battlefield medic", "Battlefield medic");
+                adultFemale.SetTitleShort("Medic", "Medic");
+                adultFemale.baseDesc = "[PAWN_pronoun] continued to serve in the military, being promoted through the ranks as [PAWN_possessive] skill increased. [PAWN_pronoun] learned how to treat more serious wounds as [PAWN_possessive] role slowly transitioned from scout to medic, as well as how to make good use of army rations. [PAWN_pronoun] built good rapport with [PAWN_possessive] squad as a result.";
+                Traverse.Create(adultFemale).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Shooting", 4);
+                Traverse.Create(adultFemale).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Medicine", 3);
+                Traverse.Create(adultFemale).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Cooking", 2);
+                Traverse.Create(adultFemale).Field("skillGains").GetValue<Dictionary<string, int>>().Add("Social", 1);
                 adultFemale.spawnCategories = new List<string>();
                 adultFemale.spawnCategories.AddRange(new string[] { "Civil", "Raider", "Slave", "Trader", "Traveler" });
                 adultFemale.shuffleable = false;
                 adultFemale.PostLoad();
                 adultFemale.ResolveReferences();
-                /*PawnBio maleMe = new PawnBio();
-                maleMe.childhood = childMe;
-                maleMe.adulthood = adultMale;
-                maleMe.gender = GenderPossibility.Male;
-                maleMe.name = NameTriple.FromString("Jason 'Jackal' Tarai");
-                maleMe.PostLoad();
-                SolidBioDatabase.allBios.Add(maleMe);*/
-                PawnBio femaleMe = new PawnBio();
-                femaleMe.childhood = childMe;
-                femaleMe.adulthood = adultFemale;
-                femaleMe.gender = GenderPossibility.Female;
-                femaleMe.name = NameTriple.FromString("Elizabeth 'Eagle' Tarai");
-                femaleMe.PostLoad();
-                SolidBioDatabase.allBios.Add(femaleMe);
-                BackstoryDatabase.AddBackstory(childMe);
-                //BackstoryDatabase.AddBackstory(adultMale);
+                PawnBio male = new PawnBio();
+                male.childhood = child;
+                male.adulthood = adultMale;
+                male.gender = GenderPossibility.Male;
+                male.name = NameTriple.FromString("Jason 'Jackal' Tarai");
+                male.PostLoad();
+                SolidBioDatabase.allBios.Add(male);
+                PawnBio female = new PawnBio();
+                female.childhood = child;
+                female.adulthood = adultFemale;
+                female.gender = GenderPossibility.Female;
+                female.name = NameTriple.FromString("Elizabeth 'Eagle' Tarai");
+                female.PostLoad();
+                SolidBioDatabase.allBios.Add(female);
+                BackstoryDatabase.AddBackstory(child);
+                BackstoryDatabase.AddBackstory(adultMale);
                 BackstoryDatabase.AddBackstory(adultFemale);
             }
         }
@@ -325,15 +357,14 @@ namespace Psychology
             {
                 /* Remove Gay trait from pawns if Kinsey scale is enabled */
                 IEnumerable<Pawn> gayPawns = (from p in map.mapPawns.AllPawns
-                                       where p.RaceProps.Humanlike && p.story.traits.HasTrait(TraitDefOf.Gay)
+                                       where p.story != null && p.story.traits.HasTrait(TraitDefOf.Gay)
                                        select p);
                 foreach (Pawn pawn in gayPawns)
                 {
                     RemoveTrait(pawn, TraitDefOf.Gay);
-                    PsychologyPawn realPawn = pawn as PsychologyPawn;
-                    if (realPawn != null && realPawn.sexuality.kinseyRating < 5)
+                    if (PsycheHelper.PsychologyEnabled(pawn) && PsycheHelper.Comp(pawn).Sexuality.kinseyRating < 5)
                     {
-                        realPawn.sexuality.kinseyRating = Rand.RangeInclusive(5, 6);
+                        PsycheHelper.Comp(pawn).Sexuality.kinseyRating = Rand.RangeInclusive(5, 6);
                     }
                 }
             }
@@ -341,10 +372,29 @@ namespace Psychology
 
         public override void Tick(int currentTick)
         {
+            //Performance reporting tick
+            if (EnablePerformanceTesting() && currentTick % GenDate.TicksPerDay == 0 && PerformanceSetup.performanceTotals.Keys.Count > 0)
+            {
+                Dictionary<string, float> averages = PerformanceSetup.performanceTotals.ToDictionary(x => x.Key, x => (float)x.Value / (float)PerformanceSetup.performanceCalls[x.Key]);
+                int topAmt = Math.Min(10, averages.Count);
+                List<KeyValuePair<string, float>> avgTicks = (from avg in averages orderby avg.Value descending select avg).Take(topAmt).ToList();
+                List<KeyValuePair<string, float>> topTicks = (from avg in averages orderby avg.Value*PerformanceSetup.performanceCalls[avg.Key] descending select avg).Take(topAmt).ToList();
+                StringBuilder avgString = new StringBuilder();
+                foreach(KeyValuePair<string, float> t in avgTicks)
+                {
+                    avgString.AppendLine(t.Key + " (" + t.Value + ")");
+                }
+                StringBuilder topString = new StringBuilder();
+                foreach (KeyValuePair<string, float> t in topTicks)
+                {
+                    topString.AppendLine(t.Key + " (" + avgTicks.Find(x => x.Key == t.Key).Value + ")");
+                }
+                Log.Message("Psychology :: Performance Report :: Top " + topAmt + " average tick consumers:\n" + avgString.ToString() + "\nTop " + topAmt + " weighted tick consumers: " + topString.ToString());
+            }
             //Constituent tick
             if (currentTick % GenDate.TicksPerHour*2 == 0)
             {
-                Map playerFactionMap = Find.WorldObjects.FactionBases.Find(b => b.Faction.IsPlayer).Map;
+                Map playerFactionMap = Find.WorldObjects.SettlementBases.Find(b => b.Faction.IsPlayer).Map;
                 IEnumerable<Pawn> constituents = (from p in playerFactionMap.mapPawns.FreeColonistsSpawned
                                                   where !p.health.hediffSet.HasHediff(HediffDefOfPsychology.Mayor) && p.GetLord() == null && p.GetTimeAssignment() != TimeAssignmentDefOf.Work && p.Awake()
                                                   select p);
@@ -355,10 +405,9 @@ namespace Psychology
                                                       where !m.Dead && m.health.hediffSet.HasHediff(HediffDefOfPsychology.Mayor) && ((Hediff_Mayor)m.health.hediffSet.GetFirstHediffOfDef(HediffDefOfPsychology.Mayor)).worldTileElectedOn == potentialConstituent.Map.Tile
                                                       && m.GetTimeAssignment() != TimeAssignmentDefOf.Work && m.GetTimeAssignment() != TimeAssignmentDefOf.Sleep && m.GetLord() == null && m.Awake() && m.GetLord() == null
                                                       select m);
-                    if (potentialConstituent != null && activeMayors.Count() > 0)
+                    if (potentialConstituent != null && !potentialConstituent.Downed && !potentialConstituent.Drafted && potentialConstituent.health.summaryHealth.SummaryHealthPercent >= 1f && potentialConstituent.GetTimeAssignment() != TimeAssignmentDefOf.Work && activeMayors.Count() > 0)
                     {
                         Pawn mayor = activeMayors.RandomElement(); //There should only be one.
-                        PsychologyPawn psychologyConstituent = potentialConstituent as PsychologyPawn;
                         IntVec3 gather = default(IntVec3);
                         String found = null;
                         if (mayor.Map.GetComponent<OfficeTableMapComponent>().officeTable != null)
@@ -371,12 +420,13 @@ namespace Psychology
                             gather = mayor.ownership.OwnedBed.Position;
                             found = "bed";
                         }
-                        if ((psychologyConstituent == null || Rand.Value < (1f - psychologyConstituent.psyche.GetPersonalityRating(PersonalityNodeDefOf.Independent)) / 5f) && (found != null || RCellFinder.TryFindPartySpot(mayor, out gather)))
+                        if (PsycheHelper.PsychologyEnabled(potentialConstituent) && Rand.Chance((1f - PsycheHelper.Comp(potentialConstituent).Psyche.GetPersonalityRating(PersonalityNodeDefOf.Independent)) / 5f) && (found != null || RCellFinder.TryFindPartySpot(mayor, out gather))
+                            && (!mayor.Drafted && !mayor.Downed && mayor.health.summaryHealth.SummaryHealthPercent >= 1f && mayor.GetTimeAssignment() != TimeAssignmentDefOf.Work && (mayor.CurJob == null || mayor.CurJob.def != JobDefOf.TendPatient || mayor.CurJob.RecipeDef.workerClass.IsAssignableFrom(typeof(Recipe_Surgery)))))
                         {
                             List<Pawn> pawns = new List<Pawn>();
                             pawns.Add(mayor);
                             pawns.Add(potentialConstituent);
-                            Lord meeting = LordMaker.MakeNewLord(mayor.Faction, new LordJob_VisitMayor(gather, potentialConstituent, mayor, (potentialConstituent.needs.mood.CurLevel < 0.4f)), mayor.Map, pawns);
+                            Lord meeting = LordMaker.MakeNewLord(mayor.Faction, new LordJob_VisitMayor(gather, potentialConstituent, mayor, (potentialConstituent.needs.mood.CurLevel < (potentialConstituent.mindState.mentalBreaker.BreakThresholdMinor*1.25f))), mayor.Map, pawns);
                             mayor.jobs.EndCurrentJob(Verse.AI.JobCondition.InterruptForced);
                             potentialConstituent.jobs.EndCurrentJob(Verse.AI.JobCondition.InterruptForced);
                             if (found == "bed")
@@ -394,7 +444,7 @@ namespace Psychology
             //Election tick
             if (currentTick % (GenDate.TicksPerDay/4f) == 0)
             {
-                foreach (FactionBase factionBase in Find.WorldObjects.FactionBases)
+                foreach (Settlement settlement in Find.WorldObjects.Settlements)
                 {
                     //Self-explanatory.
                     if (!PsychologyBase.ActivateElections())
@@ -402,46 +452,46 @@ namespace Psychology
                         continue;
                     }
                     //If the base isn't owned or named by the player, no election can be held.
-                    if (!factionBase.Faction.IsPlayer || !factionBase.namedByPlayer)
+                    if (!settlement.Faction.IsPlayer || !settlement.namedByPlayer)
                     {
                         continue;
                     }
                     //If the base is not at least a year old, no election will be held.
-                    if ((Find.TickManager.TicksGame - factionBase.creationGameTicks) / GenDate.TicksPerYear < 1)
+                    if ((Find.TickManager.TicksGame - settlement.creationGameTicks) / GenDate.TicksPerYear < 1)
                     {
                         continue;
                     }
                     //A base must have at least 7 people in it to hold an election.
-                    if (factionBase.Map.mapPawns.FreeColonistsSpawnedCount < 7)
+                    if (settlement.Map.mapPawns.FreeColonistsSpawnedCount < 7)
                     {
                         continue;
                     }
                     //If an election is already being held, don't start a new one.
-                    if (factionBase.Map.gameConditionManager.ConditionIsActive(GameConditionDefOfPsychology.Election) || factionBase.Map.lordManager.lords.Find(l => l.LordJob is LordJob_Joinable_Election) != null)
+                    if (settlement.Map.gameConditionManager.ConditionIsActive(GameConditionDefOfPsychology.Election) || settlement.Map.lordManager.lords.Find(l => l.LordJob is LordJob_Joinable_Election) != null)
                     {
                         continue;
                     }
                     //Elections are held in Septober (because I guess some maps don't have fall?) and during the day.
-                    if (GenDate.Quadrum(Find.TickManager.TicksAbs, Find.WorldGrid.LongLatOf(factionBase.Tile).x) != Quadrum.Septober || (GenLocalDate.HourOfDay(factionBase.Map) < 7 || GenLocalDate.HourOfDay(factionBase.Map) > 20))
+                    if (GenDate.Quadrum(Find.TickManager.TicksAbs, Find.WorldGrid.LongLatOf(settlement.Tile).x) != Quadrum.Septober || (GenLocalDate.HourOfDay(settlement.Map) < 7 || GenLocalDate.HourOfDay(settlement.Map) > 20))
                     {
                         continue;
                     }
                     //If an election has already been completed this year, don't start a new one.
-                    IEnumerable<Pawn> activeMayors = (from m in factionBase.Map.mapPawns.FreeColonistsSpawned
-                                                      where !m.Dead && m.health.hediffSet.HasHediff(HediffDefOfPsychology.Mayor) && ((Hediff_Mayor)m.health.hediffSet.GetFirstHediffOfDef(HediffDefOfPsychology.Mayor)).worldTileElectedOn == factionBase.Map.Tile && ((Hediff_Mayor)m.health.hediffSet.GetFirstHediffOfDef(HediffDefOfPsychology.Mayor)).yearElected == GenLocalDate.Year(factionBase.Map.Tile)
+                    IEnumerable<Pawn> activeMayors = (from m in settlement.Map.mapPawns.FreeColonistsSpawned
+                                                      where !m.Dead && m.health.hediffSet.HasHediff(HediffDefOfPsychology.Mayor) && ((Hediff_Mayor)m.health.hediffSet.GetFirstHediffOfDef(HediffDefOfPsychology.Mayor)).worldTileElectedOn == settlement.Map.Tile && ((Hediff_Mayor)m.health.hediffSet.GetFirstHediffOfDef(HediffDefOfPsychology.Mayor)).yearElected == GenLocalDate.Year(settlement.Map.Tile)
                                                       select m);
                     if (activeMayors.Count() > 0)
                     {
                         continue;
                     }
                     //Try to space out the elections so they don't all proc at once.
-                    if (Rand.RangeInclusive(1, 15 - GenLocalDate.DayOfQuadrum(factionBase.Map.Tile)) > 1)
+                    if (Rand.RangeInclusive(1, 15 - GenLocalDate.DayOfQuadrum(settlement.Map.Tile)) > 1)
                     {
                         continue;
                     }
                     IncidentParms parms = new IncidentParms();
-                    parms.target = factionBase.Map;
-                    parms.faction = factionBase.Faction;
+                    parms.target = settlement.Map;
+                    parms.faction = settlement.Faction;
                     FiringIncident fi = new FiringIncident(IncidentDefOfPsychology.Election, null, parms);
                     Find.Storyteller.TryFire(fi);
                 }

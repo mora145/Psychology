@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <LanguageData>
+	<MayorTitle>mayor</MayorTitle>
 
 <!-- Lord job reports -->
 	<LordReportAttendingElection>Visiting polling place</LordReportAttendingElection>
@@ -10,11 +11,10 @@
 
 <!-- Miscellaneous thought log text -->
 	<ConversationStage>conversation about</ConversationStage>
-	<ConversationEnd>Ended a conversation with</ConversationEnd>
+	<ConversationEnd>[INITIATOR_nameDef] ended a conversation with [RECIPIENT_nameDef].</ConversationEnd>
 	<ConversationEnded>ended conversation</ConversationEnded>
-	<Complained>Complained to the mayor.</Complained>
-	<Supported>Voiced my support to the mayor.</Supported>
-	<HadMeeting>Had a meeting with a constituent</HadMeeting>
+	<Complained>{0_labelShort} complained to the mayor, {1_labelShort}.</Complained>
+	<Supported>{0_labelShort} voiced {0_possessive} support to the mayor, {1_labelShort}.</Supported>
 	
 <!-- Node descriptions -->
 	<PsycheNot>Not</PsycheNot>
@@ -23,6 +23,7 @@
 	<PsycheMore>More</PsycheMore>
 	<PsycheVery>Very</PsycheVery>
 	<PsycheExtremely>Extremely</PsycheExtremely>
+	<ConversationTooltip>People will talk about {0} to discuss this with each other.</ConversationTooltip>
 	
 <!-- Comp text -->
 	<CommandOfficeTableToggleLabel>Mayoral office</CommandOfficeTableToggleLabel>

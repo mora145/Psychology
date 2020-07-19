@@ -11,12 +11,16 @@ namespace Psychology.Harmony
     [HarmonyPatch(typeof(ThoughtWorker_AlwaysActive), "CurrentStateInternal")]
     public static class ThoughtWorker_AlwaysActivePatch
     {
+        [LogPerformance]
         [HarmonyPostfix]
         public static void AlwaysActiveDepression(ref ThoughtState __result, Pawn p)
         {
-            if(p.health.hediffSet.HasHediff(HediffDefOfPsychology.Antidepressants))
+            if (__result.StageIndex > 1)
             {
-                __result = ThoughtState.ActiveAtStage(1);
+                if (p.health.hediffSet.HasHediff(HediffDefOfPsychology.Antidepressants))
+                {
+                    __result = ThoughtState.ActiveAtStage(1);
+                }
             }
         }
     }

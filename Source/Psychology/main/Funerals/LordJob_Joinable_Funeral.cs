@@ -56,15 +56,15 @@ namespace Psychology
             Scribe_References.Look(ref grave, "grave");
             Scribe_Collections.Look(ref attendees, "attendees", LookMode.Reference);
         }
-        
+
+        [LogPerformance]
         private void Finished()
         {
             StringBuilder attendedString = new StringBuilder();
             foreach(Pawn p in attendees)
             {
                 attendedString.AppendLine(p.Name.ToString());
-                PsychologyPawn realP = p as PsychologyPawn;
-                if (realP != null)
+                if (PsycheHelper.PsychologyEnabled(p))
                 {
                     ThoughtDef def = new ThoughtDef();
                     def.defName = p.GetHashCode() + "AttendedFuneral" + dead.GetHashCode();
@@ -75,10 +75,10 @@ namespace Psychology
                     def.thoughtClass = typeof(Thought_MemoryDynamic);
                     ThoughtStage stage = new ThoughtStage();
                     stage.label = "AttendedFuneralThought".Translate(dead);
-                    stage.baseMoodEffect = Mathf.RoundToInt((p.relations.OpinionOf(dead)/15f) * (0.33f + (p as PsychologyPawn).psyche.GetPersonalityRating(PersonalityNodeDefOf.Nostalgic)));
-                    stage.description = "AttendedFuneralDesc".Translate().AdjustedFor(dead);
+                    stage.baseMoodEffect = Mathf.RoundToInt((p.relations.OpinionOf(dead)/15f) * (0.33f + PsycheHelper.Comp(p).Psyche.GetPersonalityRating(PersonalityNodeDefOf.Nostalgic)));
+                    stage.description = "AttendedFuneralDesc".Translate(dead);
                     def.stages.Add(stage);
-                    realP.needs.mood.thoughts.memories.TryGainMemory(def);
+                    p.needs.mood.thoughts.memories.TryGainMemory(def);
                 }
                 else
                 {
@@ -99,7 +99,7 @@ namespace Psychology
         
         private bool IsInvited(Pawn p)
         {
-            return p.Faction == this.lord.faction && p.needs.mood != null && p.relations.OpinionOf(dead) > 0 && ((p as PsychologyPawn) == null || Mathf.Lerp(0, 100, p.relations.OpinionOf(dead)) >= (1f - (p as PsychologyPawn).psyche.GetPersonalityRating(PersonalityNodeDefOf.Nostalgic)));
+            return p.Faction == this.lord.faction && p.needs.mood != null && p.relations.OpinionOf(dead) > 0 && (!PsycheHelper.PsychologyEnabled(p) || Mathf.Lerp(0, 100, p.relations.OpinionOf(dead)) >= (1f - PsycheHelper.Comp(p).Psyche.GetPersonalityRating(PersonalityNodeDefOf.Nostalgic)));
         }
         
         private bool IsPartyAboutToEnd()

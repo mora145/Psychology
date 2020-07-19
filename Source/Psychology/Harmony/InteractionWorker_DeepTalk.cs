@@ -8,13 +8,15 @@ using Harmony;
 
 namespace Psychology.Harmony
 {
-	[HarmonyPatch(typeof(InteractionWorker_DeepTalk), "RandomSelectionWeight")]
+	[HarmonyPatch(typeof(InteractionWorker_DeepTalk), nameof(InteractionWorker_DeepTalk.RandomSelectionWeight))]
 	public static class InteractionWorker_DeepTalk_SelectionWeightPatch
-	{
-		[HarmonyPrefix]
-		public static bool PsychologyException(InteractionWorker_DeepTalk __instance, Pawn initiator, Pawn recipient)
+    {
+        [LogPerformance]
+        [HarmonyPrefix]
+		public static bool PsychologyException(InteractionWorker_DeepTalk __instance, ref float __result, Pawn initiator, Pawn recipient)
 		{
-			return !(initiator is PsychologyPawn || recipient is PsychologyPawn);
+            __result = 0f;
+			return !PsycheHelper.PsychologyEnabled(initiator) || !PsycheHelper.PsychologyEnabled(recipient);
 		}
 	}
 }

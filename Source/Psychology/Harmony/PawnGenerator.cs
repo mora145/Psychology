@@ -13,38 +13,56 @@ namespace Psychology.Harmony
     [HarmonyPatch(typeof(PawnGenerator), "GenerateTraits")]
     public static class PawnGenerator_GenerateTraitsPatch
     {
+        [LogPerformance]
         [HarmonyPriority(Priority.First)]
         [HarmonyPrefix]
         public static bool KinseyException(ref Pawn pawn, PawnGenerationRequest request)
         {
-            PsychologyPawn newPawn = pawn as PsychologyPawn;
-            if (newPawn != null)
+            if (PsycheHelper.PsychologyEnabled(pawn))
             {
-                newPawn.psyche.Initialize();
                 if (PsychologyBase.ActivateKinsey())
                 {
-                    while (newPawn.sexuality.kinseyRating > 2 && !request.AllowGay)
+                    while (PsycheHelper.Comp(pawn).Sexuality.kinseyRating > 2 && !request.AllowGay)
                     {
-                        newPawn.sexuality.GenerateSexuality();
+                        PsycheHelper.Comp(pawn).Sexuality.GenerateSexuality();
                     }
                     if (LovePartnerRelationUtility.HasAnyLovePartnerOfTheSameGender(pawn) || LovePartnerRelationUtility.HasAnyExLovePartnerOfTheSameGender(pawn))
                     {
-                        while (newPawn.sexuality.kinseyRating < 2)
+                        while (PsycheHelper.Comp(pawn).Sexuality.kinseyRating < 2)
                         {
-                            newPawn.sexuality.GenerateSexuality();
+                            PsycheHelper.Comp(pawn).Sexuality.GenerateSexuality();
                         }
                     }
                     else if (LovePartnerRelationUtility.HasAnyLovePartnerOfTheOppositeGender(pawn) || LovePartnerRelationUtility.HasAnyExLovePartnerOfTheOppositeGender(pawn))
                     {
-                        while (newPawn.sexuality.kinseyRating > 4)
+                        while (PsycheHelper.Comp(pawn).Sexuality.kinseyRating > 4)
                         {
-                            newPawn.sexuality.GenerateSexuality();
+                            PsycheHelper.Comp(pawn).Sexuality.GenerateSexuality();
                         }
                     }
-                    pawn = newPawn;
                 }
             }
             return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(PawnGenerator), "GenerateTraits")]
+    public static class PawnGenerator_GenerateTraitsSiblingsPatch
+    {
+        [HarmonyPostfix]
+        public static void TaraiSiblings(ref Pawn pawn, ref PawnGenerationRequest request)
+        {
+            Pawn p = pawn;
+            if(pawn.story != null && pawn.story.childhood == PsychologyBase.child)
+            {
+                IEnumerable<Pawn> other = (from x in PawnsFinder.AllMapsWorldAndTemporary_AliveOrDead
+                              where x.def == p.def && x.story != null && x.story.childhood == p.story.childhood
+                              select x);
+                if(other.Count() > 0)
+                {
+                    Traverse.Create(typeof(PawnGenerator)).Field("relationsGeneratableBlood").GetValue<PawnRelationDef[]>().Where(r => r.defName == "Sibling").First().Worker.CreateRelation(pawn, other.First(), ref request);
+                }
+            }
         }
     }
 }

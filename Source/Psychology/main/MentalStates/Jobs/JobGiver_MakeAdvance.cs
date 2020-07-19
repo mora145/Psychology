@@ -10,6 +10,7 @@ namespace Psychology
 {
     public class JobGiver_MakeAdvance : ThinkNode_JobGiver
     {
+        [LogPerformance]
         protected override Job TryGiveJob(Pawn pawn)
         {
             if(pawn.interactions.InteractedTooRecentlyToInteract() || lastRomanceTick > Find.TickManager.TicksGame - 1000)
@@ -32,7 +33,17 @@ namespace Psychology
             }
             else if(Rand.Value < 0.5f)
             {
-                return new Job(JobDefOf.Goto, pawn2);
+                IntVec3 root = WanderUtility.BestCloseWanderRoot(pawn2.PositionHeld, pawn);
+                Func<Pawn, IntVec3, IntVec3, bool> wanderDestValidator = delegate (Pawn p, IntVec3 c, IntVec3 wRoot)
+                {
+                    Room room = root.GetRoom(p.Map, RegionType.Set_Passable);
+                    if (room != null && !WanderRoomUtility.IsValidWanderDest(p, c, root))
+                    {
+                        return false;
+                    }
+                    return true;
+                };
+                return new Job(JobDefOf.Goto, RCellFinder.RandomWanderDestFor(pawn, root, 3f, wanderDestValidator, PawnUtility.ResolveMaxDanger(pawn, Danger.Deadly)));
             }
             return null;
         }

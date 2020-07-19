@@ -12,6 +12,7 @@ namespace Psychology.Harmony
     [HarmonyPatch(typeof(VoluntarilyJoinableLordsStarter), "Tick_TryStartParty")]
     public static class VoluntarilyJoinableLordsStarter_StartPartyPatch
     {
+        [LogPerformance]
         [HarmonyPrefix]
         public static bool ExtraSocialiteParties(VoluntarilyJoinableLordsStarter __instance)
         {
@@ -21,15 +22,7 @@ namespace Psychology.Harmony
             {
                 return false;
             }
-            int socialiteMod = 1;
-            IEnumerable<Pawn> allPawnsSpawned = map.mapPawns.FreeColonistsSpawned;
-            foreach (Pawn pawn in allPawnsSpawned)
-            {
-                if (pawn.RaceProps.Humanlike && pawn.story.traits.HasTrait(TraitDefOfPsychology.Socialite))
-                {
-                    socialiteMod++;
-                }
-            }
+            int socialiteMod = 1 + map.mapPawns.FreeColonistsSpawned.Where(p => p.story.traits.HasTrait(TraitDefOfPsychology.Socialite)).Count();
             if (Find.TickManager.TicksGame % (GenDate.TicksPerHour * 2) == 0)
             {
                 if (Rand.MTBEventOccurs(40f, GenDate.TicksPerDay, (GenDate.TicksPerHour * 2f * (1 + (socialiteMod/(map.mapPawns.ColonistCount > 0 ? map.mapPawns.ColonistCount : 1))))))
